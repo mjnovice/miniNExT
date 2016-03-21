@@ -172,7 +172,7 @@ class Node(BaseNode):
         if not f or value is None:
             return
         if isinstance(value, list):
-            result = f(*value)
+            result = f(value)
         elif isinstance(value, dict):
             # In some cases, we're passing a dict with non-string keywords,
             # and thus must pass f( value ) instead of f( **value ).
@@ -183,10 +183,11 @@ class Node(BaseNode):
             # To determine when we need to do this, we iterate through all
             # dict keys to discover non-string keys. We could also use a
             # flag or catch an exception, but these may have side-effects
-            if all(isinstance(k, basestring) for k in value):
-                result = f(**value)
-            else:
-                result = f(value)
+            result = f(value)
+            #if all(isinstance(k, basestring) for k in value):
+            #    result = f(value)
+            #else:
+            #    result = f(value)
         else:
             result = f(value)
         results[name] = result
@@ -212,6 +213,7 @@ class Node(BaseNode):
         # (2) - user private mounts
         # (3) - services and service mounts
         # (4) - setup hostname, loopback adapters, and other network components
+        
         self.setParam(r, 'setupPrivateLogs', privateLogDir=privateLogDir)
         self.setParam(r, 'setupPrivateRun', privateRunDir=privateRunDir)
         self.setParam(r, 'setupPrivateMounts', privateMounts=privateMounts)
@@ -346,6 +348,23 @@ class Node(BaseNode):
 
         # Mark the node as having private run space
         self.hasPrivateLogs = True
+
+    def setupPrivateMounts(self, privateMounts):
+        """Sets up a private mount given the source and target
+           privateLogDir: None/True for default source, else path for source"""
+
+        # Handle the input provided (either a bool or a path)
+        # Create the PathProperties and MountProperties objects
+        for target in privateMounts:
+            sourcePathProperties = PathProperties(path=privateMounts[target],
+                                           perms=getObjectPerms(target),
+                                           create=True,
+                                           createRecursive=True,
+                                           setPerms=False)
+            privateMount = MountProperties(target=target, source=sourcePathProperties)
+
+            # Pass the created mountPoint off...
+            self.setupMountPoint(privateMount)
 
     def setupPrivateRun(self, privateRunDir):
         """Sets up a private /run (& /var/run) directory for the node
